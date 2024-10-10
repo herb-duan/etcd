@@ -15,7 +15,6 @@
 package apply
 
 import (
-	"context"
 	"sync"
 
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
@@ -41,7 +40,7 @@ func newAuthApplierV3(as auth.AuthStore, base applierV3, lessor lease.Lessor) *a
 	return &authApplierV3{applierV3: base, as: as, lessor: lessor}
 }
 
-func (aa *authApplierV3) Apply(ctx context.Context, r *pb.InternalRaftRequest, applyFunc applyFunc) *Result {
+func (aa *authApplierV3) Apply(r *pb.InternalRaftRequest, applyFunc applyFunc) *Result {
 	aa.mu.Lock()
 	defer aa.mu.Unlock()
 	if r.Header != nil {
@@ -57,13 +56,13 @@ func (aa *authApplierV3) Apply(ctx context.Context, r *pb.InternalRaftRequest, a
 			return &Result{Err: err}
 		}
 	}
-	ret := aa.applierV3.Apply(ctx, r, applyFunc)
+	ret := aa.applierV3.Apply(r, applyFunc)
 	aa.authInfo.Username = ""
 	aa.authInfo.Revision = 0
 	return ret
 }
 
-func (aa *authApplierV3) Put(ctx context.Context, r *pb.PutRequest) (*pb.PutResponse, *traceutil.Trace, error) {
+func (aa *authApplierV3) Put(r *pb.PutRequest) (*pb.PutResponse, *traceutil.Trace, error) {
 	if err := aa.as.IsPutPermitted(&aa.authInfo, r.Key); err != nil {
 		return nil, nil, err
 	}
@@ -82,17 +81,17 @@ func (aa *authApplierV3) Put(ctx context.Context, r *pb.PutRequest) (*pb.PutResp
 			return nil, nil, err
 		}
 	}
-	return aa.applierV3.Put(ctx, r)
+	return aa.applierV3.Put(r)
 }
 
-func (aa *authApplierV3) Range(ctx context.Context, r *pb.RangeRequest) (*pb.RangeResponse, *traceutil.Trace, error) {
+func (aa *authApplierV3) Range(r *pb.RangeRequest) (*pb.RangeResponse, *traceutil.Trace, error) {
 	if err := aa.as.IsRangePermitted(&aa.authInfo, r.Key, r.RangeEnd); err != nil {
 		return nil, nil, err
 	}
-	return aa.applierV3.Range(ctx, r)
+	return aa.applierV3.Range(r)
 }
 
-func (aa *authApplierV3) DeleteRange(ctx context.Context, r *pb.DeleteRangeRequest) (*pb.DeleteRangeResponse, *traceutil.Trace, error) {
+func (aa *authApplierV3) DeleteRange(r *pb.DeleteRangeRequest) (*pb.DeleteRangeResponse, *traceutil.Trace, error) {
 	if err := aa.as.IsDeleteRangePermitted(&aa.authInfo, r.Key, r.RangeEnd); err != nil {
 		return nil, nil, err
 	}
@@ -103,14 +102,14 @@ func (aa *authApplierV3) DeleteRange(ctx context.Context, r *pb.DeleteRangeReque
 		}
 	}
 
-	return aa.applierV3.DeleteRange(ctx, r)
+	return aa.applierV3.DeleteRange(r)
 }
 
-func (aa *authApplierV3) Txn(ctx context.Context, rt *pb.TxnRequest) (*pb.TxnResponse, *traceutil.Trace, error) {
+func (aa *authApplierV3) Txn(rt *pb.TxnRequest) (*pb.TxnResponse, *traceutil.Trace, error) {
 	if err := txn.CheckTxnAuth(aa.as, &aa.authInfo, rt); err != nil {
 		return nil, nil, err
 	}
-	return aa.applierV3.Txn(ctx, rt)
+	return aa.applierV3.Txn(rt)
 }
 
 func (aa *authApplierV3) LeaseRevoke(lc *pb.LeaseRevokeRequest) (*pb.LeaseRevokeResponse, error) {

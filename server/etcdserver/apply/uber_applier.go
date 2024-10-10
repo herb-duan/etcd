@@ -15,7 +15,7 @@
 package apply
 
 import (
-	"context"
+	"errors"
 	"time"
 
 	"go.uber.org/zap"
@@ -114,16 +114,16 @@ func (a *uberApplier) Apply(r *pb.InternalRaftRequest) *Result {
 	// then dispatch() unpacks the request to a specific method (like Put),
 	// that gets executed down the hierarchy again:
 	// i.e. CorruptApplier.Put(CappedApplier.Put(...(BackendApplier.Put(...)))).
-	return a.applyV3.Apply(context.TODO(), r, a.dispatch)
+	return a.applyV3.Apply(r, a.dispatch)
 }
 
 // dispatch translates the request (r) into appropriate call (like Put) on
 // the underlying applyV3 object.
-func (a *uberApplier) dispatch(ctx context.Context, r *pb.InternalRaftRequest) *Result {
+func (a *uberApplier) dispatch(r *pb.InternalRaftRequest) *Result {
 	op := "unknown"
 	ar := &Result{}
 	defer func(start time.Time) {
-		success := ar.Err == nil || ar.Err == mvcc.ErrCompacted
+		success := ar.Err == nil || errors.Is(ar.Err, mvcc.ErrCompacted)
 		txn.ApplySecObserve(v3Version, op, success, time.Since(start))
 		txn.WarnOfExpensiveRequest(a.lg, a.warningApplyDuration, start, &pb.InternalRaftStringer{Request: r}, ar.Resp, ar.Err)
 		if !success {
@@ -134,16 +134,16 @@ func (a *uberApplier) dispatch(ctx context.Context, r *pb.InternalRaftRequest) *
 	switch {
 	case r.Range != nil:
 		op = "Range"
-		ar.Resp, ar.Trace, ar.Err = a.applyV3.Range(ctx, r.Range)
+		ar.Resp, ar.Trace, ar.Err = a.applyV3.Range(r.Range)
 	case r.Put != nil:
 		op = "Put"
-		ar.Resp, ar.Trace, ar.Err = a.applyV3.Put(ctx, r.Put)
+		ar.Resp, ar.Trace, ar.Err = a.applyV3.Put(r.Put)
 	case r.DeleteRange != nil:
 		op = "DeleteRange"
-		ar.Resp, ar.Trace, ar.Err = a.applyV3.DeleteRange(ctx, r.DeleteRange)
+		ar.Resp, ar.Trace, ar.Err = a.applyV3.DeleteRange(r.DeleteRange)
 	case r.Txn != nil:
 		op = "Txn"
-		ar.Resp, ar.Trace, ar.Err = a.applyV3.Txn(ctx, r.Txn)
+		ar.Resp, ar.Trace, ar.Err = a.applyV3.Txn(r.Txn)
 	case r.Compaction != nil:
 		op = "Compaction"
 		ar.Resp, ar.Physc, ar.Trace, ar.Err = a.applyV3.Compaction(r.Compaction)

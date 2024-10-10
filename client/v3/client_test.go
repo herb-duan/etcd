@@ -49,9 +49,7 @@ func TestDialCancel(t *testing.T) {
 
 	// accept first connection so client is created with dial timeout
 	ln, err := net.Listen("unix", "dialcancel:12345")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer ln.Close()
 
 	ep := "unix://dialcancel:12345"
@@ -59,9 +57,7 @@ func TestDialCancel(t *testing.T) {
 		Endpoints:   []string{ep},
 		DialTimeout: 30 * time.Second}
 	c, err := NewClient(t, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// connect to ipv4 black hole so dial blocks
 	c.SetEndpoints("http://254.0.0.1:12345")
@@ -150,9 +146,10 @@ func TestDialTimeout(t *testing.T) {
 func TestDialNoTimeout(t *testing.T) {
 	cfg := Config{Endpoints: []string{"127.0.0.1:12345"}}
 	c, err := NewClient(t, cfg)
-	if c == nil || err != nil {
+	if c == nil {
 		t.Fatalf("new client with DialNoWait should succeed, got %v", err)
 	}
+	require.NoErrorf(t, err, "new client with DialNoWait should succeed")
 	c.Close()
 }
 
@@ -199,61 +196,51 @@ func TestBackoffJitterFraction(t *testing.T) {
 }
 
 func TestIsHaltErr(t *testing.T) {
-	assert.Equal(t,
+	assert.True(t,
 		isHaltErr(context.TODO(), errors.New("etcdserver: some etcdserver error")),
-		true,
 		"error created by errors.New should be unavailable error",
 	)
-	assert.Equal(t,
+	assert.False(t,
 		isHaltErr(context.TODO(), rpctypes.ErrGRPCStopped),
-		false,
 		fmt.Sprintf(`error "%v" should not be halt error`, rpctypes.ErrGRPCStopped),
 	)
-	assert.Equal(t,
+	assert.False(t,
 		isHaltErr(context.TODO(), rpctypes.ErrGRPCNoLeader),
-		false,
 		fmt.Sprintf(`error "%v" should not be halt error`, rpctypes.ErrGRPCNoLeader),
 	)
 	ctx, cancel := context.WithCancel(context.TODO())
-	assert.Equal(t,
+	assert.False(t,
 		isHaltErr(ctx, nil),
-		false,
 		"no error and active context should be halt error",
 	)
 	cancel()
-	assert.Equal(t,
+	assert.True(t,
 		isHaltErr(ctx, nil),
-		true,
 		"cancel on context should be halte error",
 	)
 }
 
 func TestIsUnavailableErr(t *testing.T) {
-	assert.Equal(t,
+	assert.False(t,
 		isUnavailableErr(context.TODO(), errors.New("etcdserver: some etcdserver error")),
-		false,
 		"error created by errors.New should not be unavailable error",
 	)
-	assert.Equal(t,
+	assert.True(t,
 		isUnavailableErr(context.TODO(), rpctypes.ErrGRPCStopped),
-		true,
 		fmt.Sprintf(`error "%v" should be unavailable error`, rpctypes.ErrGRPCStopped),
 	)
-	assert.Equal(t,
+	assert.False(t,
 		isUnavailableErr(context.TODO(), rpctypes.ErrGRPCNotCapable),
-		false,
 		fmt.Sprintf("error %v should not be unavailable error", rpctypes.ErrGRPCNotCapable),
 	)
 	ctx, cancel := context.WithCancel(context.TODO())
-	assert.Equal(t,
+	assert.False(t,
 		isUnavailableErr(ctx, nil),
-		false,
 		"no error and active context should not be unavailable error",
 	)
 	cancel()
-	assert.Equal(t,
+	assert.False(t,
 		isUnavailableErr(ctx, nil),
-		false,
 		"cancel on context should not be unavailable error",
 	)
 }
@@ -299,9 +286,7 @@ func TestAuthTokenBundleNoOverwrite(t *testing.T) {
 
 	// Create a mock AuthServer to handle Authenticate RPCs.
 	lis, err := net.Listen("unix", "etcd-auth-test:0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer lis.Close()
 	addr := "unix://" + lis.Addr().String()
 	srv := grpc.NewServer()
@@ -317,18 +302,14 @@ func TestAuthTokenBundleNoOverwrite(t *testing.T) {
 		Username:    "foo",
 		Password:    "bar",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer c.Close()
 	oldTokenBundle := c.authTokenBundle
 
 	// Call the public Dial again, which should preserve the original
 	// authTokenBundle.
 	gc, err := c.Dial(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer gc.Close()
 	newTokenBundle := c.authTokenBundle
 

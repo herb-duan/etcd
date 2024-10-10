@@ -12,28 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package embed
+// As this directory implements the pattern for tracking tool dependencies as documented here:
+// https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module, it doesn't
+// contain any valid go source code in the directory directly. This would break scripts for
+// unit testing, golangci-lint, and coverage calculation.
+//
+// Thus, to ensure tools to run normally, we've added this empty file.
 
-import (
-	"errors"
-	"net/url"
-	"testing"
-
-	"go.etcd.io/etcd/client/pkg/v3/transport"
-)
-
-func TestEmptyClientTLSInfo_createMetricsListener(t *testing.T) {
-	e := &Etcd{
-		cfg: Config{
-			ClientTLSInfo: transport.TLSInfo{},
-		},
-	}
-
-	murl := url.URL{
-		Scheme: "https",
-		Host:   "localhost:8080",
-	}
-	if _, err := e.createMetricsListener(murl); !errors.Is(err, ErrMissingClientTLSInfoForMetricsURL) {
-		t.Fatalf("expected error %v, got %v", ErrMissingClientTLSInfoForMetricsURL, err)
-	}
-}
+package mod

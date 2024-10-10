@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package embed
+package main
 
-import (
-	"errors"
-	"net/url"
-	"testing"
+import "unsafe"
 
-	"go.etcd.io/etcd/client/pkg/v3/transport"
-)
+const magic uint32 = 0xED0CDAED
 
-func TestEmptyClientTLSInfo_createMetricsListener(t *testing.T) {
-	e := &Etcd{
-		cfg: Config{
-			ClientTLSInfo: transport.TLSInfo{},
-		},
-	}
+type inBucket struct {
+	root     uint64 // page id of the bucket's root-level page
+	sequence uint64 // monotonically incrementing, used by NextSequence()
+}
 
-	murl := url.URL{
-		Scheme: "https",
-		Host:   "localhost:8080",
-	}
-	if _, err := e.createMetricsListener(murl); !errors.Is(err, ErrMissingClientTLSInfoForMetricsURL) {
-		t.Fatalf("expected error %v, got %v", ErrMissingClientTLSInfoForMetricsURL, err)
-	}
+type meta struct {
+	magic    uint32
+	version  uint32
+	pageSize uint32
+	flags    uint32
+	root     inBucket
+	freelist uint64
+	pgid     uint64
+	txid     uint64
+	checksum uint64
+}
+
+func loadPageMeta(buf []byte) *meta {
+	return (*meta)(unsafe.Pointer(&buf[pageHeaderSize]))
 }
