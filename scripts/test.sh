@@ -448,16 +448,20 @@ function bom_pass {
   rm bom-now.json.tmp
 }
 
-function gomodguard_for_module {
+function module_gomodguard {
   if [ ! -f .gomodguard.yaml ]; then
     # Nothing to validate, return.
     return
   fi
-  run_go_tool github.com/ryancurrah/gomodguard/cmd/gomodguard
+
+  local tool_bin="$1"
+  run "${tool_bin}"
 }
 
 function gomodguard_pass {
-  run_for_modules gomodguard_for_module
+  local tool_bin
+  tool_bin=$(tool_get_bin github.com/ryancurrah/gomodguard/cmd/gomodguard)
+  run_for_workspace_modules module_gomodguard "${tool_bin}"
 }
 
 ######## VARIOUS CHECKERS ######################################################
@@ -592,6 +596,15 @@ EOF
 
 function mod_tidy_pass {
   run_for_workspace_modules run go mod tidy -diff
+}
+
+function module_mod_tidy_fix {
+  run rm ./go.sum
+  run go mod tidy || return 2
+}
+
+function mod_tidy_fix_pass {
+  run_for_workspace_modules module_mod_tidy_fix
 }
 
 function proto_annotations_pass {
